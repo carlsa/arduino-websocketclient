@@ -21,7 +21,4 @@ An example sketch that communicates with echo.websocket.org is included in the l
 ### Credits
 Thank you to:
   - github user djsb for the websocet client for arduino that I could adapt for ESP8266
-  - github user brandenhall for his library that I used to better understand the handshaking process
   - developers of the third party libraries included by this websocket client library: MD5, sha1 & Base64
-
-This library is general purpose but was made to support the muzzley arduino library (also available on github). Check http://www.muzzley.com for further reference.
