@@ -24,11 +24,12 @@
 
 #include "sha1.h"
 #include "base64.h"
-#include <Ethernet.h>
+//#include <Ethernet.h>
 #include <WSClient.h>
+#include <ESP8266WiFi.h>
 
 
-bool WSClient::handshake(Client &client) {
+bool WSClient::handshake(WiFiClient &client) {
 
 
     socket_client = &client;
@@ -100,55 +101,52 @@ bool WSClient::analyzeRequest() {
     bool foundupgrade = false;
     bool foundconnection = false;
     char keyStart[17];
-    char b64Key[25];
-    char key[]="------------------------";
+    char b64Key[29];
 
     randomSeed(analogRead(0));
+
     for (int i=0; i<16; ++i) {
-        keyStart[i] = (char)random(1, 256);
+        keyStart[i] = (char)random(0, 255);
     }
 
     base64_encode(b64Key, keyStart, 16);
 
-    for (int i=0; i<24; ++i) {
-        key[i] = b64Key[i];
-    }
-
-    socket_client->print(F("GET "));
+    socket_client->print("GET ");
     socket_client->print(path);
-    socket_client->print(F(" HTTP/1.1\r\n"));
-    socket_client->print(F("Upgrade: websocket\r\n"));
-    socket_client->print(F("Connection: Upgrade\r\n"));
-    socket_client->print(F("Host: "));
+    socket_client->print(" HTTP/1.1\r\n");
+    socket_client->print("Upgrade: websocket\r\n");
+    socket_client->print("Connection: Upgrade\r\n");
+    socket_client->print("Host: ");
     socket_client->print(host);
     socket_client->print(CRLF); 
-    socket_client->print(F("Sec-WebSocket-Key: "));
-    socket_client->print(key);
+    socket_client->print("Sec-WebSocket-Key: ");
+    socket_client->print(b64Key);
     socket_client->print(CRLF);
-    socket_client->print(F("Sec-WebSocket-Version: 13\r\n"));
+    socket_client->print("Sec-WebSocket-Version: 13\r\n");
     socket_client->print(CRLF);
 
     // DEBUG ONLY - inspect the handshaking process
-    /*
-    Serial.print(F("GET "));
+/*
+    Serial.print("GET ");
     Serial.print(path);
-    Serial.print(F(" HTTP/1.1\r\n"));
-    Serial.print(F("Upgrade: websocket\r\n"));
-    Serial.print(F("Connection: Upgrade\r\n"));
-    Serial.print(F("Host: "));
+    Serial.print(" HTTP/1.1\r\n");
+    Serial.print("Upgrade: websocket\r\n");
+    Serial.print("Connection: Upgrade\r\n");
+    Serial.print("Host: ");
     Serial.print(host);
     Serial.print(CRLF); 
-    Serial.print(F("Sec-WebSocket-Key: "));
-    Serial.print(key);
+    Serial.print("Sec-WebSocket-Key: ");
+    Serial.print(b64Key);
     Serial.print(CRLF);
-    Serial.print(F("Sec-WebSocket-Version: 13\r\n"));
+    Serial.print("Sec-WebSocket-Version: 13\r\n");
     Serial.print(CRLF);
-    */
+*/  
 
 
     while (socket_client->connected() && !socket_client->available()) {
         delay(50);
     }
+
 
 
     while (!socket_client->available()) {
@@ -158,67 +156,54 @@ bool WSClient::analyzeRequest() {
 
     int i=0;
     char temp[80];
-    char serverKey[28];
+    char serverKey[29];
 
+    // Extract the Sec-WebSocket-Accept response from the server
     // TODO: Improve the extraction
     while ((bite = socket_client->read()) != -1) {
-        temp[i] = (char)bite; i++;
-        if ((char)bite == '\n'){
-
-            int commaPosition = -1;
-            if (commaPosition = charinstr(temp, sizeof(temp), "Sec-WebSocket-Accept:") != -1){
-
-              if(commaPosition != -1)
-              {
-                commaPosition = commaPosition + 19;
-                for (int i=2; i<sizeof(temp); i++){
-                    serverKey[i-2] = temp[i+commaPosition];
-
-                }
-            }
-
+        if (i >= sizeof(temp)) {
+            i = 0;
+            Serial.println("WSClient: Flushing full buffer.");
         }
 
-        memset(temp, NULL, sizeof(temp));
-        i=0;
+        temp[i++] = (char)bite;
+        
+        if ((char)bite == '\n'){
+            // TODO: trim whitespaces
+            int colonPosition = charinstr(temp, sizeof(temp), "Sec-WebSocket-Accept:");
+            if (colonPosition != -1){
+                for (int j=0; j< sizeof(temp)-1 - colonPosition  &&  j < sizeof(serverKey); j++) {
+                    serverKey[j] = temp[j+colonPosition+2];
+                }
+                serverKey[28]='\0';
+            }
 
+            memset(temp, NULL, sizeof(temp));
+            i=0;
+        }
     }
 
+    // Append the magic key to the Sec-WebSocket-Key
+    char magicKey[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    char newKey[60];
+
+    memcpy(&newKey, &b64Key, 24);
+    memcpy(&newKey[24], &magicKey, 37);
+
+    // SHA1 hash Sec-WebSocket-Key with magic key appended and base64 encode the result
+    uint8_t *hash;
+    char result[21];
+    char b64Result[29];
+
+    Sha1.init();
+    Sha1.print(newKey);
+    hash = Sha1.result();
+
+    base64_encode(b64Result, (char*)hash, 20);
+
+    // Determine if handshake was successfull by comparing the predicted response with the actuall Sec-WebSocket-Accept
+    return array_cmp(serverKey,b64Result,sizeof(serverKey), sizeof(b64Result));
 }
-
-char magicKey[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-
-char newKey[60];
-for (int i=0; i<sizeof(key); i++){
-    newKey[i]=key[i];
-}
-
-for (int i=0; i<sizeof(magicKey); i++){
-    newKey[sizeof(key)+i-1]=magicKey[i];
-}
-
-
-
-uint8_t *hash;
-char result[21];
-char b64Result[28];
-
-
-Sha1.init();
-Sha1.print(newKey);
-hash = Sha1.result();
-
-for (int i=0; i<20; ++i) {
-    result[i] = (char)hash[i];
-}
-result[20] = '\0';
-
-base64_encode(b64Result, result, 20);
-
-return array_cmp(serverKey,b64Result,sizeof(serverKey), sizeof(b64Result));
-}
-
-
 
 
 void WSClient::disconnect() {

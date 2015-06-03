@@ -21,6 +21,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE. 
+#include <ESP8266WiFi.h>
 
 #ifndef WSCLIENT_H_
 #define WSCLIENT_H_
@@ -36,7 +37,7 @@
 class WSClient {
 public:
 
-    bool handshake(Client &client);     // Handle connection requests to validate and process/refuse connections.
+    bool handshake(WiFiClient &client);     // Handle connection requests to validate and process/refuse connections.
     char* getData(); // Get data off of the stream
     void sendData(char *str); // Write data to the stream
     void disconnect();
