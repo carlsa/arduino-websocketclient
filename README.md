@@ -1,4 +1,4 @@
-## Websocket Client for Arduino for **ESP8266**
+## Websocket Client for Arduino for ESP8266
 
 This library implements a websocket client for the [ESP8266 arduino project](https://github.com/esp8266/Arduino).
 This library supports Sec-WebSocket-Version: 13 and binary **multiple** binary frame messaging.
@@ -6,7 +6,7 @@ This library supports Sec-WebSocket-Version: 13 and binary **multiple** binary f
 ### Limitations
 
 This library:
-  * <del>only supports sending a max 128 byte message (including headers);</del> - Now supporting Binary Data Framing & compliant with RFC6455 sections 5.6 / 5.7
+  * Supporting Binary Data Framing & compliant with RFC6455 sections 5.6 / 5.7
 
 ### Getting started
 
@@ -25,7 +25,3 @@ Thank you to:
   - developers of the third party libraries included by this websocket client library: MD5, sha1 & Base64
 
 This library is general purpose but was made to support the muzzley arduino library (also available on github). Check http://www.muzzley.com for further reference.
-
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/djsb/arduino-websocketclient/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
